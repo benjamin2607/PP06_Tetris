@@ -13,6 +13,10 @@ class MehrsteinTetris:
         self.rows = rows
         # Erstelle das Raster (Grid) als Liste von Zeilen, die mit der Hintergrundfarbe gefüllt sind.
         self.grid = [[background for _ in range(columns)] for _ in range(rows)]
+        # Definiere eine Liste möglicher Farben für die Tetris-Teile.
+        self.colors = ["Red", "Green", "Blue", "Yellow", "Magenta", "Cyan", "Orange"]
+        # Setze current_color beim Start fest
+        self.current_color = random.choice(self.colors)
         # Initial wird ein Standard-Teil, hier ein I-Teil, in der Mitte des Spielfelds erzeugt.
         self._current = [(columns // 2 - 2, 0),
                          (columns // 2 - 1, 0),
@@ -45,7 +49,7 @@ class MehrsteinTetris:
             [(1, 0), (2, 0), (0, 1), (1, 1)],  # S-Form
             [(0, 0), (1, 0), (1, 1), (2, 1)],  # Z-Form
             [(0, 0), (0, 1), (1, 1), (2, 1)],  # J-Form
-            [(2, 0), (0, 1), (1, 1), (2, 1)]   # L-Form
+            [(2, 0), (0, 1), (1, 1), (2, 1)]  # L-Form
         ]
         shape = random.choice(shapes)
         # Bestimme den horizontalen Offset, damit das neue Teil in das Spielfeld passt.
@@ -56,6 +60,8 @@ class MehrsteinTetris:
         offset_max = self.columns - 1 - max_x
         offset = random.randint(offset_min, offset_max) if offset_max >= offset_min else offset_min
         new_piece = [(x + offset, y) for (x, y) in shape]
+        # Weise dem neuen Teil eine zufällige Farbe zu.
+        self.current_color = random.choice(self.colors)
         return new_piece
 
     def move(self):
@@ -66,7 +72,7 @@ class MehrsteinTetris:
 
         Falls mindestens ein Block nicht weiter nach unten bewegt
         werden kann, wird das Teil "eingefroren":
-         - Die Zellen des Teils werden im Raster mit einer festen Farbe (hier "Red") markiert.
+         - Die Zellen des Teils werden im Raster mit der Farbe des Teils markiert.
          - Voll belegte Zeilen werden erkannt und entfernt (neue leere Zeilen werden oben eingefügt).
          - Anschließend wird ein neues fallendes Teil mittels get_new_piece() erzeugt.
         """
@@ -79,27 +85,26 @@ class MehrsteinTetris:
         if can_move:
             self._current = new_coords
         else:
-            # "Einfrieren" des Teils ins Raster
+            # "Einfrieren" des Teils ins Raster mit der aktuellen Farbe
             for (x, y) in self._current:
                 if 0 <= x < self.columns and 0 <= y < self.rows:
-                    self.grid[y][x] = "Red"
-            # Entferne volle Zeilen (Zeilen, die nicht mehr die Hintergrundfarbe enthalten)
+                    self.grid[y][x] = self.current_color
+            # Entferne volle Zeilen (Zeilen, in denen keine Zelle den Hintergrund mehr enthält)
             notFull = [row for row in self.grid if any(cell == background for cell in row)]
             missing_rows = self.rows - len(notFull)
             new_rows = [[background for _ in range(self.columns)] for _ in range(missing_rows)]
             self.grid = new_rows + notFull
-            # Erzeuge ein neues Teil
+            # Erzeuge ein neues Teil mit zufälliger Farbe.
             self._current = self.get_new_piece()
         return self
 
     def prInput(self, input):
         """
         Verarbeitet die Tastatureingabe.
-         - Mit Input.Left und Input.Right werden alle Blöcke des
-           aktuellen Teils lateral verschoben, falls das Ziel frei ist.
-         - Mit Input.RotateLeft bzw. Input.RotateRight wird das
-           Teil um einen Pivotpunkt (dem ersten Block) gedreht.
-         - Mit Input.Fall wird das Teil sofort (Hard Drop) nach unten bewegt.
+         - Mit Input.Left und Input.Right werden alle Blöcke des aktuellen Teils lateral verschoben, falls das Ziel frei ist.
+         - Mit Input.RotateLeft bzw. Input.RotateRight wird das Teil um einen Pivotpunkt (den ersten Block) gedreht.
+         - Mit Input.Fall wird das Teil beschleunigt (Soft Drop) nach unten bewegt,
+           indem pro Eingabe mehrere Schritte ausgeführt werden, ohne sofort alle Zeilen zu überspringen.
         """
         if input == Input.Left:
             proposed = [(x - 1, y) for (x, y) in self._current]
@@ -136,15 +141,16 @@ class MehrsteinTetris:
                 self._current = new_coords
 
         elif input == Input.Fall:
-            # Beim Hard Drop wird das Teil so weit nach unten bewegt, bis es nicht mehr möglich ist.
-            while True:
+            # Hier wird jetzt schrittweise gedroppt und nicht mehr instant nach unten gewarped.
+            steps = 3  # Anzahl der Schritte pro Frame bei gedrückter Leertaste
+            for _ in range(steps):
                 proposed = [(x, y + 1) for (x, y) in self._current]
                 if all((y + 1) < self.rows and self.grid[y + 1][x] == background for (x, y) in self._current):
                     self._current = proposed
                 else:
+                    # Kann der Block nicht weiterfallen, wird er eingefroren.
+                    self.move()
                     break
-            # Anschließend wird das Teil dauerhaft eingefroren.
-            self.move()
         return self
 
 
@@ -160,7 +166,7 @@ def playTetris(tetris, block_size=30, fps=60):
     pygame.display.set_caption("Tetris")
     clock = pygame.time.Clock()
 
-    # Für einen automatischen Drop des fallenden Teils alle 500 ms (z.B.)
+    # Für einen automatischen Drop des fallenden Teils alle 200 ms
     drop_time = 0
     drop_interval = 200  # Millisekunden
 
@@ -199,19 +205,20 @@ def playTetris(tetris, block_size=30, fps=60):
             for col in range(tetris.columns):
                 color = tetris.grid[row][col]
                 if color != background:
-                    pygame.draw.rect(screen, color,
-                                     (col * block_size, row * block_size, block_size, block_size))
-        # Den aktuellen fallenden Stein zeichnen (hier in "Red")
+                    rect = (col * block_size, row * block_size, block_size, block_size)
+                    pygame.draw.rect(screen, color, rect)
+                    # Rand um jeden Block
+                    pygame.draw.rect(screen, "Black", rect, 1)
+        # Den aktuellen fallenden Stein in seiner zugewiesenen Farbe zeichnen
         for (col, row) in tetris.current():
-            # Definiere das Rechteck für den Block.
             rect = (col * block_size, row * block_size, block_size, block_size)
-            # Zeichne den Block gefüllt in Rot.
-            pygame.draw.rect(screen, "Red", rect)
-            # Zeichne einen schwarzen Rahmen um den Block; der vierte Parameter (z.B. 1) bestimmt die Linienbreite.
+            pygame.draw.rect(screen, tetris.current_color, rect)
             pygame.draw.rect(screen, "Black", rect, 1)
+
         pygame.display.flip()
 
     pygame.quit()
+
 
 
 if __name__ == "__main__":
