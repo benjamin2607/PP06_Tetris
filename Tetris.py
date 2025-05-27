@@ -52,6 +52,7 @@ class MehrsteinTetris:
             [(2, 0), (0, 1), (1, 1), (2, 1)]  # L-Form
         ]
         shape = random.choice(shapes)
+        # Bestimme den horizontalen Offset, damit das neue Teil in das Spielfeld passt.
         xs = [x for (x, y) in shape]
         min_x = min(xs)
         max_x = max(xs)
