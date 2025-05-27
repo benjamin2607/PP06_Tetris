@@ -94,11 +94,10 @@ class MehrsteinTetris:
     def prInput(self, input):
         """
         Verarbeitet die Tastatureingabe.
-         - Mit Input.Left und Input.Right werden alle Blöcke des
-           aktuellen Teils lateral verschoben, falls das Ziel frei ist.
-         - Mit Input.RotateLeft bzw. Input.RotateRight wird das
-           Teil um einen Pivotpunkt (dem ersten Block) gedreht.
-         - Mit Input.Fall wird das Teil sofort (Hard Drop) nach unten bewegt.
+         - Mit Input.Left und Input.Right werden alle Blöcke des aktuellen Teils lateral verschoben, falls das Ziel frei ist.
+         - Mit Input.RotateLeft bzw. Input.RotateRight wird das Teil um einen Pivotpunkt (den ersten Block) gedreht.
+         - Mit Input.Fall wird das Teil beschleunigt (Soft Drop) nach unten bewegt,
+           indem pro Eingabe mehrere Schritte ausgeführt werden, ohne sofort alle Zeilen zu überspringen.
         """
         if input == Input.Left:
             proposed = [(x - 1, y) for (x, y) in self._current]
@@ -111,7 +110,6 @@ class MehrsteinTetris:
                 self._current = proposed
 
         elif input == Input.RotateLeft:
-            # Drehung gegen den Uhrzeigersinn; benutze den ersten Block als Drehpunkt.
             pivot = self._current[0]
             new_coords = []
             for (x, y) in self._current:
@@ -123,7 +121,6 @@ class MehrsteinTetris:
                 self._current = new_coords
 
         elif input == Input.RotateRight:
-            # Drehung im Uhrzeigersinn; benutzte ebenfalls den ersten Block als Drehpunkt.
             pivot = self._current[0]
             new_coords = []
             for (x, y) in self._current:
@@ -135,15 +132,17 @@ class MehrsteinTetris:
                 self._current = new_coords
 
         elif input == Input.Fall:
-            # Beim Hard Drop wird das Teil so weit nach unten bewegt, bis es nicht mehr möglich ist.
-            while True:
+            # Anstatt eines Hard Drops (while-Schleife) wird hier pro Eingabe ein Soft Drop
+            # realisiert, das den Block um mehrere (hier 3) Schritte nach unten bewegt.
+            steps = 3  # Anzahl der Schritte pro Frame bei gedrückter Leertaste
+            for _ in range(steps):
                 proposed = [(x, y + 1) for (x, y) in self._current]
                 if all((y + 1) < self.rows and self.grid[y + 1][x] == background for (x, y) in self._current):
                     self._current = proposed
                 else:
+                    # Kann der Block nicht weiterfallen, wird er eingefroren.
+                    self.move()
                     break
-            # Anschließend wird das Teil dauerhaft eingefroren.
-            self.move()
         return self
 
 
