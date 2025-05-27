@@ -36,6 +36,12 @@ class MehrsteinTetris:
         return len(row_zero) != 0
 
     def get_new_piece(self):
+        """
+        Erzeugt ein neues Tetris-Teil aus einer festgelegten Auswahl an Formen.
+        Die Formen werden als Liste relativer Koordinaten definiert.
+        Anschließend wird ein horizontaler Offset berechnet, sodass das Teil
+        innerhalb der Spielfeldgrenzen platziert werden kann.
+        """
         shapes = [
             [(0, 0), (1, 0), (2, 0), (3, 0)],  # I-Form
             [(0, 0), (0, 1), (1, 0), (1, 1)],  # O-Form
@@ -110,6 +116,7 @@ class MehrsteinTetris:
                 self._current = proposed
 
         elif input == Input.RotateLeft:
+            # Drehung gegen den Uhrzeigersinn; benutze den ersten Block als Drehpunkt.
             pivot = self._current[0]
             new_coords = []
             for (x, y) in self._current:
@@ -121,6 +128,7 @@ class MehrsteinTetris:
                 self._current = new_coords
 
         elif input == Input.RotateRight:
+            # Drehung im Uhrzeigersinn; benutzte ebenfalls den ersten Block als Drehpunkt.
             pivot = self._current[0]
             new_coords = []
             for (x, y) in self._current:
@@ -132,8 +140,7 @@ class MehrsteinTetris:
                 self._current = new_coords
 
         elif input == Input.Fall:
-            # Anstatt eines Hard Drops (while-Schleife) wird hier pro Eingabe ein Soft Drop
-            # realisiert, das den Block um mehrere (hier 3) Schritte nach unten bewegt.
+            # Hier wird jetzt schrittweise gedroppt und nicht mehr instant nach unten gewarped.
             steps = 3  # Anzahl der Schritte pro Frame bei gedrückter Leertaste
             for _ in range(steps):
                 proposed = [(x, y + 1) for (x, y) in self._current]
