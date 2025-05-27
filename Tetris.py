@@ -203,9 +203,12 @@ def playTetris(tetris, block_size=30, fps=60):
                                      (col * block_size, row * block_size, block_size, block_size))
         # Den aktuellen fallenden Stein zeichnen (hier in "Red")
         for (col, row) in tetris.current():
-            pygame.draw.rect(screen, "Red",
-                             (col * block_size, row * block_size, block_size, block_size))
-
+            # Definiere das Rechteck für den Block.
+            rect = (col * block_size, row * block_size, block_size, block_size)
+            # Zeichne den Block gefüllt in Rot.
+            pygame.draw.rect(screen, "Red", rect)
+            # Zeichne einen schwarzen Rahmen um den Block; der vierte Parameter (z.B. 1) bestimmt die Linienbreite.
+            pygame.draw.rect(screen, "Black", rect, 1)
         pygame.display.flip()
 
     pygame.quit()
