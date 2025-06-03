@@ -166,40 +166,65 @@ def playTetris(tetris, block_size=30, fps=60):
     pygame.display.set_caption("Tetris")
     clock = pygame.time.Clock()
 
+    # Define fail line at 80% from top
+    fail_line_y = int(tetris.rows * 0.2)  # 20% from top (80% of play area below)
+    
     # Für einen automatischen Drop des fallenden Teils alle 200 ms
     drop_time = 0
     drop_interval = 200  # Millisekunden
+    game_over = False
 
     running = True
     while running:
-        dt = clock.tick(fps)  # dt ist die verstrichene Zeit in Millisekunden seit dem letzten Frame
+        dt = clock.tick(fps)
         drop_time += dt
 
-        # Ereignisse abarbeiten (z.B. Schließen des Fensters)
+        # Ereignisse abarbeiten
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == pygame.KEYDOWN and game_over:
+                if event.key == pygame.K_q:
+                    running = False
+                elif event.key == pygame.K_e:
+                    # Reset game
+                    tetris = MehrsteinTetris(columns=tetris.columns, rows=tetris.rows)
+                    game_over = False
 
-        # Tastatureingaben abfragen und an das Spiel weiterleiten
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            tetris.prInput(Input.Left)
-        if keys[pygame.K_RIGHT]:
-            tetris.prInput(Input.Right)
-        if keys[pygame.K_UP]:
-            tetris.prInput(Input.RotateLeft)
-        if keys[pygame.K_DOWN]:
-            tetris.prInput(Input.RotateRight)
-        if keys[pygame.K_SPACE]:
-            tetris.prInput(Input.Fall)
+        if not game_over:
+            # Tastatureingaben abfragen und an das Spiel weiterleiten
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LEFT]:
+                tetris.prInput(Input.Left)
+            if keys[pygame.K_RIGHT]:
+                tetris.prInput(Input.Right)
+            if keys[pygame.K_UP]:
+                tetris.prInput(Input.RotateLeft)
+            if keys[pygame.K_DOWN]:
+                tetris.prInput(Input.RotateRight)
+            if keys[pygame.K_SPACE]:
+                tetris.prInput(Input.Fall)
 
-        # Automatischer Drop: Nach Ablauf des Intervalls wird das Teil eine Zeile nach unten bewegt.
-        if drop_time >= drop_interval:
-            tetris.move()
-            drop_time = 0
+            # Automatischer Drop
+            if drop_time >= drop_interval:
+                tetris.move()
+                drop_time = 0
+
+            # Check for game over condition
+            for x in range(tetris.columns):
+                if tetris.grid[fail_line_y][x] != background:
+                    game_over = True
+                    break
 
         # Zeichnen des Spielfelds
         screen.fill(background)
+        
+        # Draw fail line
+        pygame.draw.line(screen, "Red", 
+                        (0, fail_line_y * block_size), 
+                        (width, fail_line_y * block_size), 
+                        3)
+
         # Bereits festgesetzte Blöcke im Raster malen
         for row in range(tetris.rows):
             for col in range(tetris.columns):
@@ -207,13 +232,26 @@ def playTetris(tetris, block_size=30, fps=60):
                 if color != background:
                     rect = (col * block_size, row * block_size, block_size, block_size)
                     pygame.draw.rect(screen, color, rect)
-                    # Rand um jeden Block
                     pygame.draw.rect(screen, "Black", rect, 1)
-        # Den aktuellen fallenden Stein in seiner zugewiesenen Farbe zeichnen
-        for (col, row) in tetris.current():
-            rect = (col * block_size, row * block_size, block_size, block_size)
-            pygame.draw.rect(screen, tetris.current_color, rect)
-            pygame.draw.rect(screen, "Black", rect, 1)
+
+        # Den aktuellen fallenden Stein zeichnen
+        if not game_over:
+            for (col, row) in tetris.current():
+                rect = (col * block_size, row * block_size, block_size, block_size)
+                pygame.draw.rect(screen, tetris.current_color, rect)
+                pygame.draw.rect(screen, "Black", rect, 1)
+
+        # Draw game over text
+        if game_over:
+            font = pygame.font.Font(None, 74)
+            text = font.render('GAME OVER', True, 'White')
+            text_rect = text.get_rect(center=(width/2, height/2))
+            screen.blit(text, text_rect)
+            
+            font = pygame.font.Font(None, 36)
+            text = font.render('Press Q to quit or E to play again', True, 'White')
+            text_rect = text.get_rect(center=(width/2, height/2 + 50))
+            screen.blit(text, text_rect)
 
         pygame.display.flip()
 
