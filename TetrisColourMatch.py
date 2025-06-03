@@ -293,11 +293,13 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     game_over_overlay = pygame.Surface((width, height), pygame.SRCALPHA)
     game_over_overlay.fill((0, 0, 0, 192))  # 75% transparency for game over
 
-    # Prepare pause text
+    # Prepare pause texts
     pause_text = large_font.render("PAUSED", True, (255, 255, 255))
-    pause_rect = pause_text.get_rect(center=(width // 2, height // 2))
-    pause_hint = small_font.render("Press ESC to continue", True, (255, 255, 255))
-    pause_hint_rect = pause_hint.get_rect(center=(width // 2, height // 2 + 50))
+    pause_rect = pause_text.get_rect(center=(width // 2, height // 2 - 25))
+    pause_continue = small_font.render("Press ESC to continue", True, (255, 255, 255))
+    pause_continue_rect = pause_continue.get_rect(center=(width // 2, height // 2 + 25))
+    pause_quit = small_font.render("Press Q to quit", True, (255, 255, 255))
+    pause_quit_rect = pause_quit.get_rect(center=(width // 2, height // 2 + 60))
 
     running = True
     while running:
@@ -312,13 +314,13 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE and not game_over:
                     paused = not paused
-                if game_over:
-                    if event.key == pygame.K_q:
+                if event.key == pygame.K_q:
+                    if paused or game_over:  # Can quit from either pause or game over
                         running = False
-                    elif event.key == pygame.K_e:
-                        # Reset game
-                        tetris = MehrsteinTetris(columns=tetris.columns, rows=tetris.rows)
-                        game_over = False
+                if event.key == pygame.K_e and game_over:
+                    # Reset game
+                    tetris = MehrsteinTetris(columns=tetris.columns, rows=tetris.rows)
+                    game_over = False
 
         # Game logic (only process if the game is not paused and not game over)
         if not paused and not game_over:
@@ -388,7 +390,8 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
         if paused and not game_over:
             screen.blit(pause_overlay, (0, 0))
             screen.blit(pause_text, pause_rect)
-            screen.blit(pause_hint, pause_hint_rect)
+            screen.blit(pause_continue, pause_continue_rect)
+            screen.blit(pause_quit, pause_quit_rect)
 
         # Draw game over screen
         if game_over:
@@ -412,7 +415,7 @@ if __name__ == "__main__":
     # Create and start a new game
     game = MehrsteinTetris(columns=20, rows=30)
     playTetris(game, 
-               block_size=30,  # Size of each block in pixels
-               fps=240,         # Target frame rate
-               drop_speed=10   # Normal fall speed (10 blocks per second)
+               block_size=30,
+               fps=240,
+               drop_speed=10
     )
