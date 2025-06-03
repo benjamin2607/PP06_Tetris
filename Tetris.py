@@ -11,6 +11,7 @@ class MehrsteinTetris:
     def __init__(self, columns=20, rows=30):
         self.columns = columns
         self.rows = rows
+        self.score = 0
         # Erstelle das Raster (Grid) als Liste von Zeilen, die mit der Hintergrundfarbe gefüllt sind.
         self.grid = [[background for _ in range(columns)] for _ in range(rows)]
         # Definiere eine Liste möglicher Farben für die Tetris-Teile.
@@ -91,9 +92,16 @@ class MehrsteinTetris:
                     self.grid[y][x] = self.current_color
             # Entferne volle Zeilen (Zeilen, in denen keine Zelle den Hintergrund mehr enthält)
             notFull = [row for row in self.grid if any(cell == background for cell in row)]
-            missing_rows = self.rows - len(notFull)
-            new_rows = [[background for _ in range(self.columns)] for _ in range(missing_rows)]
+            removed_lines = self.rows - len(notFull)
+            new_rows = [[background for _ in range(self.columns)] for _ in range(removed_lines)]
             self.grid = new_rows + notFull
+
+            # Score für entfernte Zeile hinzufügen
+            self.score += removed_lines * 100
+
+            # Punkte für Platzieren eines neuen Blocks
+            self.score += 10
+
             # Erzeuge ein neues Teil mit zufälliger Farbe.
             self._current = self.get_new_piece()
         return self
@@ -166,7 +174,7 @@ def playTetris(tetris, block_size=30, fps=60):
     pygame.display.set_caption("Tetris")
     clock = pygame.time.Clock()
 
-    # Define fail line at 80% from top
+    # Define fail line at 80% from the top
     fail_line_y = int(tetris.rows * 0.2)  # 20% from top (80% of play area below)
 
     # Initialize fonts
@@ -266,6 +274,7 @@ def playTetris(tetris, block_size=30, fps=60):
                 pygame.draw.rect(screen, tetris.current_color, rect)
                 pygame.draw.rect(screen, "Black", rect, 1)
 
+        main
         # Draw pause screen
         if paused and not game_over:
             screen.blit(pause_overlay, (0, 0))
@@ -274,6 +283,14 @@ def playTetris(tetris, block_size=30, fps=60):
             screen.blit(pause_quit, pause_quit_rect)
 
         # Draw game over screen
+
+            font = pygame.font.Font(None, 40)
+            text = font.render(f'Score: {tetris.score}', True, 'White')
+            text_rect = text.get_rect(center=(width/2 -200 , height/2 -410))
+            screen.blit(text, text_rect)
+
+        # Draw game over text
+ 
         if game_over:
             screen.blit(game_over_overlay, (0, 0))
             game_over_text = large_font.render('GAME OVER', True, 'White')
