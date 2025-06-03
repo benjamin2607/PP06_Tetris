@@ -175,34 +175,26 @@ def playTetris(tetris, block_size=30, fps=60):
     clock = pygame.time.Clock()
 
     # Define fail line at 80% from the top
-    fail_line_y = int(tetris.rows * 0.2)  # 20% from top (80% of play area below)
+    fail_line_y = int(tetris.rows * 0.2)
 
     # Initialize fonts
     large_font = pygame.font.Font(None, 74)
     small_font = pygame.font.Font(None, 36)
+    score_font = pygame.font.Font(None, 40)
     
-    # Für einen automatischen Drop des fallenden Teils alle 200 ms
+    # Game timing
     drop_time = 0
-    drop_interval = 200  # Millisekunden
+    drop_interval = 200  # milliseconds
     
     # Game state variables
     game_over = False
     paused = False
 
-    # Create semi-transparent overlays
+    # Create overlays
     pause_overlay = pygame.Surface((width, height), pygame.SRCALPHA)
-    pause_overlay.fill((0, 0, 0, 128))  # 50% transparency for pause
-    
+    pause_overlay.fill((0, 0, 0, 128))
     game_over_overlay = pygame.Surface((width, height), pygame.SRCALPHA)
-    game_over_overlay.fill((0, 0, 0, 192))  # 75% transparency for game over
-
-    # Prepare pause texts
-    pause_text = large_font.render("PAUSED", True, (255, 255, 255))
-    pause_rect = pause_text.get_rect(center=(width // 2, height // 2 - 25))
-    pause_continue = small_font.render("Press ESC to continue", True, (255, 255, 255))
-    pause_continue_rect = pause_continue.get_rect(center=(width // 2, height // 2 + 25))
-    pause_quit = small_font.render("Press Q to quit", True, (255, 255, 255))
-    pause_quit_rect = pause_quit.get_rect(center=(width // 2, height // 2 + 60))
+    game_over_overlay.fill((0, 0, 0, 192))
 
     running = True
     while running:
@@ -217,10 +209,9 @@ def playTetris(tetris, block_size=30, fps=60):
                 if event.key == pygame.K_ESCAPE and not game_over:
                     paused = not paused
                 if event.key == pygame.K_q:
-                    if paused or game_over:  # Can quit from either pause or game over
+                    if paused or game_over:
                         running = False
                 if event.key == pygame.K_e and game_over:
-                    # Reset game
                     tetris = MehrsteinTetris(columns=tetris.columns, rows=tetris.rows)
                     game_over = False
 
@@ -238,12 +229,12 @@ def playTetris(tetris, block_size=30, fps=60):
             if keys[pygame.K_SPACE]:
                 tetris.prInput(Input.Fall)
 
-            # Automatischer Drop
+            # Automatic drop
             if drop_time >= drop_interval:
                 tetris.move()
                 drop_time = 0
 
-            # Check for game over condition
+            # Check game over
             for x in range(tetris.columns):
                 if tetris.grid[fail_line_y][x] != background:
                     game_over = True
@@ -267,63 +258,46 @@ def playTetris(tetris, block_size=30, fps=60):
                     pygame.draw.rect(screen, color, rect)
                     pygame.draw.rect(screen, "Black", rect, 1)
 
-        # Draw current falling piece if game is active
+        # Draw current piece
         if not game_over:
             for (col, row) in tetris.current():
                 rect = (col * block_size, row * block_size, block_size, block_size)
                 pygame.draw.rect(screen, tetris.current_color, rect)
                 pygame.draw.rect(screen, "Black", rect, 1)
 
-            # main
-            # Draw pause screen
-            if paused and not game_over:
-                screen.blit(pause_overlay, (0, 0))
-                screen.blit(pause_text, pause_rect)
-                screen.blit(pause_continue, pause_continue_rect)
-                screen.blit(pause_quit, pause_quit_rect)
+        # Draw score (always visible)
+        score_text = score_font.render(f'Score: {tetris.score}', True, 'White')
+        score_rect = score_text.get_rect(topleft=(10, 10))
+        screen.blit(score_text, score_rect)
 
-                font = pygame.font.Font(None, 40)
-                text = font.render(f'Score: {tetris.score}', True, 'White')
-                text_rect = text.get_rect(center=(width / 2 - 200, height / 2 - 410))
-                screen.blit(text, text_rect)
-
-            # Draw game over text
-
-            if game_over:
-                screen.blit(game_over_overlay, (0, 0))
-                game_over_text = large_font.render('GAME OVER', True, 'White')
-                game_over_rect = game_over_text.get_rect(center=(width / 2, height / 2 - 25))
-                screen.blit(game_over_text, game_over_rect)
-
-                continue_text = small_font.render('Press Q to quit or E to play again', True, 'White')
-                continue_rect = continue_text.get_rect(center=(width / 2, height / 2 + 25))
-                screen.blit(continue_text, continue_rect)
-    
-            pygame.display.flip()
         # Draw pause screen
         if paused and not game_over:
             screen.blit(pause_overlay, (0, 0))
+            pause_text = large_font.render("PAUSED", True, 'White')
+            pause_rect = pause_text.get_rect(center=(width // 2, height // 2 - 25))
             screen.blit(pause_text, pause_rect)
+            
+            pause_continue = small_font.render("Press ESC to continue", True, 'White')
+            pause_continue_rect = pause_continue.get_rect(center=(width // 2, height // 2 + 25))
             screen.blit(pause_continue, pause_continue_rect)
+            
+            pause_quit = small_font.render("Press Q to quit", True, 'White')
+            pause_quit_rect = pause_quit.get_rect(center=(width // 2, height // 2 + 60))
             screen.blit(pause_quit, pause_quit_rect)
 
         # Draw game over screen
-
-            font = pygame.font.Font(None, 40)
-            text = font.render(f'Score: {tetris.score}', True, 'White')
-            text_rect = text.get_rect(center=(width/2 -200 , height/2 -410))
-            screen.blit(text, text_rect)
-
-        # Draw game over text
- 
         if game_over:
             screen.blit(game_over_overlay, (0, 0))
             game_over_text = large_font.render('GAME OVER', True, 'White')
-            game_over_rect = game_over_text.get_rect(center=(width/2, height/2 - 25))
+            game_over_rect = game_over_text.get_rect(center=(width // 2, height // 2 - 25))
             screen.blit(game_over_text, game_over_rect)
-            
+
+            final_score = score_font.render(f'Final Score: {tetris.score}', True, 'White')
+            final_score_rect = final_score.get_rect(center=(width // 2, height // 2 + 25))
+            screen.blit(final_score, final_score_rect)
+
             continue_text = small_font.render('Press Q to quit or E to play again', True, 'White')
-            continue_rect = continue_text.get_rect(center=(width/2, height/2 + 25))
+            continue_rect = continue_text.get_rect(center=(width // 2, height // 2 + 75))
             screen.blit(continue_text, continue_rect)
 
         pygame.display.flip()
