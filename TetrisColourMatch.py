@@ -11,11 +11,11 @@ class MehrsteinTetris:
     def __init__(self, columns=20, rows=30):
         self.columns = columns
         self.rows = rows
-        self.score = 0
         # Erstelle das Raster (Grid) als Liste von Zeilen, die mit der Hintergrundfarbe gefüllt sind.
         self.grid = [[background for _ in range(columns)] for _ in range(rows)]
         # Definiere eine Liste möglicher Farben für die Tetris-Teile.
-        self.colors = ["Red", "Green", "Blue", "Yellow", "Magenta", "Cyan", "Orange"]
+        self.colors = ["Purple", "Cyan", "White"]
+        ## "Yellow", "Magenta", "Cyan", "Orange, "Red", "Green","Blue""
         # Setze current_color beim Start fest
         self.current_color = random.choice(self.colors)
         # Initial wird ein Standard-Teil, hier ein I-Teil, in der Mitte des Spielfelds erzeugt.
@@ -66,21 +66,10 @@ class MehrsteinTetris:
         return new_piece
 
     def move(self):
-        """
-        Bewegt das aktuelle fallende Teil eine Zeile nach unten,
-        sofern alle Felder direkt unter dem Teil frei und innerhalb
-        des Spielfelds liegen.
-
-        Falls mindestens ein Block nicht weiter nach unten bewegt
-        werden kann, wird das Teil "eingefroren":
-         - Die Zellen des Teils werden im Raster mit der Farbe des Teils markiert.
-         - Voll belegte Zeilen werden erkannt und entfernt (neue leere Zeilen werden oben eingefügt).
-         - Anschließend wird ein neues fallendes Teil mittels get_new_piece() erzeugt.
-        """
         new_coords = [(x, y + 1) for (x, y) in self._current]
         can_move = True
         for (x, y) in new_coords:
-            if y >= self.rows or self.grid[y][x] != background:
+            if x < 0 or x >= self.columns or y >= self.rows or self.grid[y][x] != background:
                 can_move = False
                 break
         if can_move:
@@ -90,17 +79,9 @@ class MehrsteinTetris:
             for (x, y) in self._current:
                 if 0 <= x < self.columns and 0 <= y < self.rows:
                     self.grid[y][x] = self.current_color
-            # Entferne volle Zeilen (Zeilen, in denen keine Zelle den Hintergrund mehr enthält)
-            notFull = [row for row in self.grid if any(cell == background for cell in row)]
-            removed_lines = self.rows - len(notFull)
-            new_rows = [[background for _ in range(self.columns)] for _ in range(removed_lines)]
-            self.grid = new_rows + notFull
 
-            # Score für entfernte Zeile hinzufügen
-            self.score += removed_lines * 100
-
-            # Punkte für Platzieren eines neuen Blocks
-            self.score += 10
+            # Add this line to check and remove connected pieces
+            self.remove_connected_lines()
 
             # Erzeuge ein neues Teil mit zufälliger Farbe.
             self._current = self.get_new_piece()
@@ -161,12 +142,114 @@ class MehrsteinTetris:
                     break
         return self
 
+    def find_connected_blocks(self, grid, color, start_x, start_y, visited):
+        """Helper function to find all connected blocks of the same color using DFS."""
+        if (start_x < 0 or start_x >= self.columns or 
+            start_y < 0 or start_y >= self.rows or 
+            (start_x, start_y) in visited or 
+            grid[start_y][start_x] != color):
+            return set()
+        
+        visited.add((start_x, start_y))
+        connected = {(start_x, start_y)}
+        
+        # Check all 4 directions
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        for dx, dy in directions:
+            new_x, new_y = start_x + dx, start_y + dy
+            connected.update(self.find_connected_blocks(grid, color, new_x, new_y, visited))
+        
+        return connected
 
-def playTetris(tetris, block_size=30, fps=60):
+    def spans_width(self, blocks):
+        """
+        Check if the blocks span the entire width of the game field.
+        Returns True if for each column there is at least one block.
+        """
+        columns_covered = set()
+        for x, _ in blocks:
+            columns_covered.add(x)
+        return len(columns_covered) == self.columns
+
+    def remove_connected_lines(self):
+        """Find and remove connected blocks of the same color that span the width."""
+        visited = set()
+        all_blocks_to_remove = set()
+        
+        # Find all connected components
+        for y in range(self.rows):
+            for x in range(self.columns):
+                if (x, y) not in visited and self.grid[y][x] != background:
+                    connected = self.find_connected_blocks(self.grid, self.grid[y][x], x, y, visited)
+                    if self.spans_width(connected):
+                        all_blocks_to_remove.update(connected)
+        
+        # If we found blocks to remove
+        if all_blocks_to_remove:
+            # Remove the blocks
+            for x, y in all_blocks_to_remove:
+                self.grid[y][x] = background
+        
+            # Let blocks above fall down
+            for col in range(self.columns):
+                # Create a temporary column to store non-removed blocks
+                temp_column = []
+            
+                # Collect all non-removed blocks in this column from bottom to top
+                for row in range(self.rows - 1, -1, -1):
+                    if (col, row) not in all_blocks_to_remove and self.grid[row][col] != background:
+                        temp_column.append(self.grid[row][col])
+            
+                # Fill the column from bottom to top
+                row = self.rows - 1
+                # Place collected blocks
+                for color in temp_column:
+                    self.grid[row][col] = color
+                    row -= 1
+                # Fill remaining spaces with a background
+                while row >= 0:
+                    self.grid[row][col] = background
+                    row -= 1
+
+            return True
+        return False
+
+
+def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     """
-    Diese Funktion initialisiert Pygame, erstellt ein Fenster entsprechend der
-    Spielfeldgröße von Tetris und startet die Hauptspielschleife.
+    Main game loop function for Tetris game.
+
+    Parameters:
+    -----------
+    tetris : MehrsteinTetris
+        Instance of the Tetris game class that handles game logic
+    block_size : int, optional (default=30)
+        Size of each tetris block in pixels
+    fps : int, optional (default=60)
+        Target frames per second for the game
+    drop_speed : float, optional (default=1.0)
+        Number of downward piece movements per second during normal gameplay
+
+    Game Controls:
+    -------------
+    - Left Arrow: Move piece left
+    - Right Arrow: Move piece right
+    - Up Arrow: Rotate piece counter-clockwise
+    - Down Arrow: Rotate piece clockwise
+    - Space: Fast fall
+    - ESC: Pause/Unpause game
+
+    Technical Details:
+    -----------------
+    The game uses time-based movement instead of frame-based movement to ensure
+    consistent gameplay speed regardless of frame rate. Key timings:
+    - Normal drop interval: Controlled by drop_speed parameter
+    - Fast fall interval: 50ms (20 moves per second)
+    - Movement delay: 100ms between lateral movements
+    - Rotation delay: 150ms between rotations
     """
+
+    # Initialize Pygame and create a game window
     pygame.init()
     width = tetris.columns * block_size
     height = tetris.rows * block_size
@@ -174,22 +257,36 @@ def playTetris(tetris, block_size=30, fps=60):
     pygame.display.set_caption("Tetris")
     clock = pygame.time.Clock()
 
-    # Define fail line at 80% from the top
+    # Define fail line at 80% from top
     fail_line_y = int(tetris.rows * 0.2)  # 20% from top (80% of play area below)
 
     # Initialize fonts
     large_font = pygame.font.Font(None, 74)
     small_font = pygame.font.Font(None, 36)
-    
-    # Für einen automatischen Drop des fallenden Teils alle 200 ms
-    drop_time = 0
-    drop_interval = 200  # Millisekunden
-    
-    # Game state variables
-    game_over = False
-    paused = False
 
-    # Create semi-transparent overlays
+    # Timing control variables
+    drop_interval = 1000 / drop_speed  # Convert drops per second to milliseconds
+    last_drop_time = pygame.time.get_ticks()
+    
+    # Fast fall control variables
+    fast_fall_interval = 50  # Milliseconds between fast fall moves (20 moves/second)
+    last_fast_fall_time = 0
+    
+    # Movement delay controls to prevent too rapid movement when holding keys
+    move_delay = 100    # Milliseconds between lateral movements
+    rotate_delay = 150  # Milliseconds between rotations
+    last_move_time = {
+        'left': 0,
+        'right': 0,
+        'rotate_left': 0,
+        'rotate_right': 0
+    }
+
+    # Game state variables
+    paused = False
+    game_over = False
+    
+    # Create semi-transparent overlays with different transparencies
     pause_overlay = pygame.Surface((width, height), pygame.SRCALPHA)
     pause_overlay.fill((0, 0, 0, 128))  # 50% transparency for pause
     
@@ -206,8 +303,9 @@ def playTetris(tetris, block_size=30, fps=60):
 
     running = True
     while running:
-        dt = clock.tick(fps)
-        drop_time += dt
+        # Maintain a consistent game speed
+        clock.tick(fps)
+        current_time = pygame.time.get_ticks()
 
         # Event handling
         for event in pygame.event.get():
@@ -224,24 +322,38 @@ def playTetris(tetris, block_size=30, fps=60):
                     tetris = MehrsteinTetris(columns=tetris.columns, rows=tetris.rows)
                     game_over = False
 
+        # Game logic (only process if the game is not paused and not game over)
         if not paused and not game_over:
-            # Handle input
+            # Get the current keyboard state
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]:
+            
+            # Handle lateral movement
+            if keys[pygame.K_LEFT] and current_time - last_move_time['left'] >= move_delay:
                 tetris.prInput(Input.Left)
-            if keys[pygame.K_RIGHT]:
+                last_move_time['left'] = current_time
+                
+            if keys[pygame.K_RIGHT] and current_time - last_move_time['right'] >= move_delay:
                 tetris.prInput(Input.Right)
-            if keys[pygame.K_UP]:
+                last_move_time['right'] = current_time
+                
+            # Handle rotation
+            if keys[pygame.K_UP] and current_time - last_move_time['rotate_left'] >= rotate_delay:
                 tetris.prInput(Input.RotateLeft)
-            if keys[pygame.K_DOWN]:
+                last_move_time['rotate_left'] = current_time
+                
+            if keys[pygame.K_DOWN] and current_time - last_move_time['rotate_right'] >= rotate_delay:
                 tetris.prInput(Input.RotateRight)
-            if keys[pygame.K_SPACE]:
+                last_move_time['rotate_right'] = current_time
+            
+            # Handle fast fall
+            if keys[pygame.K_SPACE] and current_time - last_fast_fall_time >= fast_fall_interval:
                 tetris.prInput(Input.Fall)
+                last_fast_fall_time = current_time
 
-            # Automatischer Drop
-            if drop_time >= drop_interval:
+            # Regular piece dropping
+            if current_time - last_drop_time >= drop_interval:
                 tetris.move()
-                drop_time = 0
+                last_drop_time = current_time
 
             # Check for game over condition
             for x in range(tetris.columns):
@@ -257,7 +369,7 @@ def playTetris(tetris, block_size=30, fps=60):
                         (0, fail_line_y * block_size), 
                         (width, fail_line_y * block_size), 
                         3)
-
+        
         # Draw fixed blocks
         for row in range(tetris.rows):
             for col in range(tetris.columns):
@@ -266,7 +378,7 @@ def playTetris(tetris, block_size=30, fps=60):
                     rect = (col * block_size, row * block_size, block_size, block_size)
                     pygame.draw.rect(screen, color, rect)
                     pygame.draw.rect(screen, "Black", rect, 1)
-
+                    
         # Draw current falling piece if game is active
         if not game_over:
             for (col, row) in tetris.current():
@@ -274,7 +386,6 @@ def playTetris(tetris, block_size=30, fps=60):
                 pygame.draw.rect(screen, tetris.current_color, rect)
                 pygame.draw.rect(screen, "Black", rect, 1)
 
-        main
         # Draw pause screen
         if paused and not game_over:
             screen.blit(pause_overlay, (0, 0))
@@ -283,31 +394,28 @@ def playTetris(tetris, block_size=30, fps=60):
             screen.blit(pause_quit, pause_quit_rect)
 
         # Draw game over screen
-
-            font = pygame.font.Font(None, 40)
-            text = font.render(f'Score: {tetris.score}', True, 'White')
-            text_rect = text.get_rect(center=(width/2 -200 , height/2 -410))
-            screen.blit(text, text_rect)
-
-        # Draw game over text
- 
         if game_over:
             screen.blit(game_over_overlay, (0, 0))
             game_over_text = large_font.render('GAME OVER', True, 'White')
-            game_over_rect = game_over_text.get_rect(center=(width/2, height/2 - 25))
+            game_over_rect = game_over_text.get_rect(center=(width/2, height/2))
             screen.blit(game_over_text, game_over_rect)
             
             continue_text = small_font.render('Press Q to quit or E to play again', True, 'White')
-            continue_rect = continue_text.get_rect(center=(width/2, height/2 + 25))
+            continue_rect = continue_text.get_rect(center=(width/2, height/2 + 50))
             screen.blit(continue_text, continue_rect)
 
+        # Update display
         pygame.display.flip()
 
+    # Cleanup
     pygame.quit()
 
 
-
 if __name__ == "__main__":
-    # Erzeuge eine neue Tetris-Partie und starte die Spielschleife.
+    # Create and start a new game
     game = MehrsteinTetris(columns=20, rows=30)
-    playTetris(game, block_size=30, fps=10)
+    playTetris(game, 
+               block_size=30,
+               fps=240,
+               drop_speed=10
+    )
