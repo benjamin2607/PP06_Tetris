@@ -274,7 +274,32 @@ def playTetris(tetris, block_size=30, fps=60):
                 pygame.draw.rect(screen, tetris.current_color, rect)
                 pygame.draw.rect(screen, "Black", rect, 1)
 
-        main
+            # main
+            # Draw pause screen
+            if paused and not game_over:
+                screen.blit(pause_overlay, (0, 0))
+                screen.blit(pause_text, pause_rect)
+                screen.blit(pause_continue, pause_continue_rect)
+                screen.blit(pause_quit, pause_quit_rect)
+
+                font = pygame.font.Font(None, 40)
+                text = font.render(f'Score: {tetris.score}', True, 'White')
+                text_rect = text.get_rect(center=(width / 2 - 200, height / 2 - 410))
+                screen.blit(text, text_rect)
+
+            # Draw game over text
+
+            if game_over:
+                screen.blit(game_over_overlay, (0, 0))
+                game_over_text = large_font.render('GAME OVER', True, 'White')
+                game_over_rect = game_over_text.get_rect(center=(width / 2, height / 2 - 25))
+                screen.blit(game_over_text, game_over_rect)
+
+                continue_text = small_font.render('Press Q to quit or E to play again', True, 'White')
+                continue_rect = continue_text.get_rect(center=(width / 2, height / 2 + 25))
+                screen.blit(continue_text, continue_rect)
+    
+            pygame.display.flip()
         # Draw pause screen
         if paused and not game_over:
             screen.blit(pause_overlay, (0, 0))
