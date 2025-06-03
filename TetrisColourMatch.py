@@ -206,7 +206,7 @@ class MehrsteinTetris:
                 for color in temp_column:
                     self.grid[row][col] = color
                     row -= 1
-                # Fill remaining spaces with background
+                # Fill remaining spaces with a background
                 while row >= 0:
                     self.grid[row][col] = background
                     row -= 1
@@ -249,7 +249,7 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     - Rotation delay: 150ms between rotations
     """
     
-    # Initialize Pygame and create game window
+    # Initialize Pygame and create a game window
     pygame.init()
     width = tetris.columns * block_size
     height = tetris.rows * block_size
@@ -258,7 +258,7 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     clock = pygame.time.Clock()
 
     # Initialize font system for pause menu
-    font = pygame.font.Font(None, 74)  # None uses default system font, size 74
+    font = pygame.font.Font(None, 74)  # None uses the default system font, size 74
 
     # Timing control variables
     drop_interval = 1000 / drop_speed  # Convert drops per second to milliseconds
@@ -288,7 +288,7 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
 
     running = True
     while running:
-        # Maintain consistent game speed
+        # Maintain a consistent game speed
         clock.tick(fps)
         current_time = pygame.time.get_ticks()
 
@@ -300,9 +300,9 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
                 if event.key == pygame.K_ESCAPE:
                     paused = not paused  # Toggle pause state
 
-        # Game logic (only process if game is not paused)
+        # Game logic (only process if the game is not paused)
         if not paused:
-            # Get current keyboard state
+            # Get the current keyboard state
             keys = pygame.key.get_pressed()
             
             # Handle lateral movement (left/right)
@@ -368,6 +368,6 @@ if __name__ == "__main__":
     game = MehrsteinTetris(columns=20, rows=40)
     playTetris(game, 
                block_size=30,  # Size of each block in pixels
-               fps=60,         # Target frame rate
+               fps=240,         # Target frame rate
                drop_speed=10   # Normal fall speed (10 blocks per second)
     )
