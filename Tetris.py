@@ -215,6 +215,8 @@ def playTetris(tetris, block_size=30, fps=60):
                     tetris = MehrsteinTetris(columns=tetris.columns, rows=tetris.rows)
                     game_over = False
 
+
+        # Checks if Game is paused
         if not paused and not game_over:
             # Handle input
             keys = pygame.key.get_pressed()
