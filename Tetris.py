@@ -181,11 +181,11 @@ def playTetris(tetris, block_size=30, fps=60):
     large_font = pygame.font.Font(None, 74)
     small_font = pygame.font.Font(None, 36)
     score_font = pygame.font.Font(None, 40)
-    
+
     # Game timing
     drop_time = 0
     drop_interval = 200  # milliseconds
-    
+
     # Game state variables
     game_over = False
     paused = False
@@ -215,7 +215,6 @@ def playTetris(tetris, block_size=30, fps=60):
                     tetris = MehrsteinTetris(columns=tetris.columns, rows=tetris.rows)
                     game_over = False
 
-
         # Checks if Game is paused
         if not paused and not game_over:
             # Handle input
@@ -244,12 +243,12 @@ def playTetris(tetris, block_size=30, fps=60):
 
         # Rendering
         screen.fill(background)
-        
+
         # Draw fail line
-        pygame.draw.line(screen, "Red", 
-                        (0, fail_line_y * block_size), 
-                        (width, fail_line_y * block_size), 
-                        3)
+        pygame.draw.line(screen, "Red",
+                         (0, fail_line_y * block_size),
+                         (width, fail_line_y * block_size),
+                         3)
 
         # Draw fixed blocks
         for row in range(tetris.rows):
@@ -278,11 +277,11 @@ def playTetris(tetris, block_size=30, fps=60):
             pause_text = large_font.render("PAUSED", True, 'White')
             pause_rect = pause_text.get_rect(center=(width // 2, height // 2 - 25))
             screen.blit(pause_text, pause_rect)
-            
+
             pause_continue = small_font.render("Press ESC to continue", True, 'White')
             pause_continue_rect = pause_continue.get_rect(center=(width // 2, height // 2 + 25))
             screen.blit(pause_continue, pause_continue_rect)
-            
+
             pause_quit = small_font.render("Press Q to quit", True, 'White')
             pause_quit_rect = pause_quit.get_rect(center=(width // 2, height // 2 + 60))
             screen.blit(pause_quit, pause_quit_rect)
@@ -305,7 +304,6 @@ def playTetris(tetris, block_size=30, fps=60):
         pygame.display.flip()
 
     pygame.quit()
-
 
 
 if __name__ == "__main__":
