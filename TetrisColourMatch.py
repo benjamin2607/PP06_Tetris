@@ -218,7 +218,7 @@ class MehrsteinTetris:
 def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     """
     Main game loop function for Tetris game.
-    
+
     Parameters:
     -----------
     tetris : MehrsteinTetris
@@ -229,7 +229,7 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
         Target frames per second for the game
     drop_speed : float, optional (default=1.0)
         Number of downward piece movements per second during normal gameplay
-    
+
     Game Controls:
     -------------
     - Left Arrow: Move piece left
@@ -238,7 +238,7 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     - Down Arrow: Rotate piece clockwise
     - Space: Fast fall
     - ESC: Pause/Unpause game
-    
+
     Technical Details:
     -----------------
     The game uses time-based movement instead of frame-based movement to ensure
@@ -248,7 +248,7 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     - Movement delay: 100ms between lateral movements
     - Rotation delay: 150ms between rotations
     """
-    
+
     # Initialize Pygame and create a game window
     pygame.init()
     width = tetris.columns * block_size
@@ -257,8 +257,12 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     pygame.display.set_caption("Tetris")
     clock = pygame.time.Clock()
 
-    # Initialize font system for pause menu
-    font = pygame.font.Font(None, 74)  # None uses the default system font, size 74
+    # Define fail line at 80% from top
+    fail_line_y = int(tetris.rows * 0.2)  # 20% from top (80% of play area below)
+
+    # Initialize fonts
+    large_font = pygame.font.Font(None, 74)
+    small_font = pygame.font.Font(None, 36)
 
     # Timing control variables
     drop_interval = 1000 / drop_speed  # Convert drops per second to milliseconds
@@ -278,13 +282,22 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
         'rotate_right': 0
     }
 
-    # Pause menu setup
-    paused = False  # Track pause state
-    # Create semi-transparent overlay for pause screen
-    pause_surface = pygame.Surface((width, height), pygame.SRCALPHA)
-    pause_surface.fill((0, 0, 0, 128))  # Black with 50% transparency
-    pause_text = font.render("PAUSED", True, (255, 255, 255))
+    # Game state variables
+    paused = False
+    game_over = False
+    
+    # Create semi-transparent overlays with different transparencies
+    pause_overlay = pygame.Surface((width, height), pygame.SRCALPHA)
+    pause_overlay.fill((0, 0, 0, 128))  # 50% transparency for pause
+    
+    game_over_overlay = pygame.Surface((width, height), pygame.SRCALPHA)
+    game_over_overlay.fill((0, 0, 0, 192))  # 75% transparency for game over
+
+    # Prepare pause text
+    pause_text = large_font.render("PAUSED", True, (255, 255, 255))
     pause_rect = pause_text.get_rect(center=(width // 2, height // 2))
+    pause_hint = small_font.render("Press ESC to continue", True, (255, 255, 255))
+    pause_hint_rect = pause_hint.get_rect(center=(width // 2, height // 2 + 50))
 
     running = True
     while running:
@@ -297,15 +310,22 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    paused = not paused  # Toggle pause state
+                if event.key == pygame.K_ESCAPE and not game_over:
+                    paused = not paused
+                if game_over:
+                    if event.key == pygame.K_q:
+                        running = False
+                    elif event.key == pygame.K_e:
+                        # Reset game
+                        tetris = MehrsteinTetris(columns=tetris.columns, rows=tetris.rows)
+                        game_over = False
 
-        # Game logic (only process if the game is not paused)
-        if not paused:
+        # Game logic (only process if the game is not paused and not game over)
+        if not paused and not game_over:
             # Get the current keyboard state
             keys = pygame.key.get_pressed()
             
-            # Handle lateral movement (left/right)
+            # Handle lateral movement
             if keys[pygame.K_LEFT] and current_time - last_move_time['left'] >= move_delay:
                 tetris.prInput(Input.Left)
                 last_move_time['left'] = current_time
@@ -323,7 +343,7 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
                 tetris.prInput(Input.RotateRight)
                 last_move_time['rotate_right'] = current_time
             
-            # Handle fast fall (space bar)
+            # Handle fast fall
             if keys[pygame.K_SPACE] and current_time - last_fast_fall_time >= fast_fall_interval:
                 tetris.prInput(Input.Fall)
                 last_fast_fall_time = current_time
@@ -333,28 +353,53 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
                 tetris.move()
                 last_drop_time = current_time
 
+            # Check for game over condition
+            for x in range(tetris.columns):
+                if tetris.grid[fail_line_y][x] != background:
+                    game_over = True
+                    break
+
         # Rendering
         screen.fill(background)
         
-        # Draw fixed blocks (blocks that have already fallen)
+        # Draw fail line
+        pygame.draw.line(screen, "Red", 
+                        (0, fail_line_y * block_size), 
+                        (width, fail_line_y * block_size), 
+                        3)
+        
+        # Draw fixed blocks
         for row in range(tetris.rows):
             for col in range(tetris.columns):
                 color = tetris.grid[row][col]
                 if color != background:
                     rect = (col * block_size, row * block_size, block_size, block_size)
                     pygame.draw.rect(screen, color, rect)
-                    pygame.draw.rect(screen, "Black", rect, 1)  # Black border
+                    pygame.draw.rect(screen, "Black", rect, 1)
                     
-        # Draw current falling piece
-        for (col, row) in tetris.current():
-            rect = (col * block_size, row * block_size, block_size, block_size)
-            pygame.draw.rect(screen, tetris.current_color, rect)
-            pygame.draw.rect(screen, "Black", rect, 1)  # Black border
+        # Draw current falling piece if game is active
+        if not game_over:
+            for (col, row) in tetris.current():
+                rect = (col * block_size, row * block_size, block_size, block_size)
+                pygame.draw.rect(screen, tetris.current_color, rect)
+                pygame.draw.rect(screen, "Black", rect, 1)
 
-        # Draw pause overlay and text if game is paused
-        if paused:
-            screen.blit(pause_surface, (0, 0))
+        # Draw pause screen
+        if paused and not game_over:
+            screen.blit(pause_overlay, (0, 0))
             screen.blit(pause_text, pause_rect)
+            screen.blit(pause_hint, pause_hint_rect)
+
+        # Draw game over screen
+        if game_over:
+            screen.blit(game_over_overlay, (0, 0))
+            game_over_text = large_font.render('GAME OVER', True, 'White')
+            game_over_rect = game_over_text.get_rect(center=(width/2, height/2))
+            screen.blit(game_over_text, game_over_rect)
+            
+            continue_text = small_font.render('Press Q to quit or E to play again', True, 'White')
+            continue_rect = continue_text.get_rect(center=(width/2, height/2 + 50))
+            screen.blit(continue_text, continue_rect)
 
         # Update display
         pygame.display.flip()
@@ -365,7 +410,7 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
 
 if __name__ == "__main__":
     # Create and start a new game
-    game = MehrsteinTetris(columns=20, rows=40)
+    game = MehrsteinTetris(columns=20, rows=30)
     playTetris(game, 
                block_size=30,  # Size of each block in pixels
                fps=240,         # Target frame rate
