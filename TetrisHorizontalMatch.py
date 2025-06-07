@@ -111,13 +111,6 @@ class MehrsteinTetris:
             """
             Rekursive Hilfsfunktion, die alle angrenzenden Zellen mit gleicher Farbe besucht
             und überprüft, ob eine Verbindung zur rechten Spielfeldseite besteht.
-
-            Args:
-                x (int): Spaltenindex der aktuellen Zelle
-                y (int): Zeilenindex der aktuellen Zelle
-
-            Returns:
-                bool: True, wenn die rechte Seite erreicht wurde, sonst False
             """
             # Abbruch, wenn Position ungültig ist oder Farbe nicht passt
             if (x, y) in visited or not (0 <= x < self.columns and 0 <= y < self.rows):
@@ -140,7 +133,7 @@ class MehrsteinTetris:
                     dfs(x, y - 1)
             )
 
-        # Starte DFS von allen Zellen in der linken Spalte, die die Ziel-Farbe besitzen
+        # Die rekursive Suche startet von allen Zellen in der linken Spalte, die die Ziel-Farbe besitzen
         for y in range(self.rows):
             if self.grid[y][0] == color:
                 if dfs(0, y):
