@@ -53,10 +53,18 @@ class MehrsteinTetris:
             [(2, 0), (0, 1), (1, 1), (2, 1)]  # L-Form
         ]
         shape = random.choice(shapes)
+
         # Bestimme den horizontalen Offset, damit das neue Teil in das Spielfeld passt.
+        # xs = Liste aus allen x-Werten
         xs = [x for (x, y) in shape]
+        # min und max x Wert
         min_x = min(xs)
         max_x = max(xs)
+
+        # horizontaler Offset ist dafür da, dass die Form innerhalb des Spielfelds bleibt.
+        # Da die Form an einem zufälligen Punkt auf der x-Achse platziert werden soll, wird mit offset min und max
+        # die Grenze festgelegt. anschließend wird ein zufälliger Punkt ausgewählt und eine Farbe zugewiesen.
+        # Anmerkung: (x+offset, y) wird auf alle einzelnen Blöcke der Form angewandt
         offset_min = -min_x
         offset_max = self.columns - 1 - max_x
         offset = random.randint(offset_min, offset_max) if offset_max >= offset_min else offset_min
@@ -77,14 +85,24 @@ class MehrsteinTetris:
          - Voll belegte Zeilen werden erkannt und entfernt (neue leere Zeilen werden oben eingefügt).
          - Anschließend wird ein neues fallendes Teil mittels get_new_piece() erzeugt.
         """
+
+        # Jeder Block des aktuellen Teils wird eine Zeile tiefer verschoben
         new_coords = [(x, y + 1) for (x, y) in self._current]
         can_move = True
+
+        # Prüfen, ob eine Bewegung möglich ist, d.h., ob alle neuen Positionen gültig sind.
         for (x, y) in new_coords:
+            # y>= self.rows -> Der neue y-Wert liegt außerhalb des Spielfelds
+            # self.grid[y][x] != background -> Die neue Zelle an Position (x,y) ist nicht besetzt.
             if y >= self.rows or self.grid[y][x] != background:
+                # Das Teil kann nicht bewegt werden
                 can_move = False
                 break
+
+        # Wenn das Teil bewegt werden kann, werden ihm die neuen Koordinaten zugewiesen
         if can_move:
             self._current = new_coords
+        # Wenn es sich nicht bewegen kann, werden alle Blöcke des Teils an dieser Stelle eingefroren
         else:
             # "Einfrieren" des Teils ins Raster mit der aktuellen Farbe
             for (x, y) in self._current:
@@ -115,7 +133,9 @@ class MehrsteinTetris:
            indem pro Eingabe mehrere Schritte ausgeführt werden, ohne sofort alle Zeilen zu überspringen.
         """
         if input == Input.Left:
+            # Alle Koordinaten werden nach links verschoben und in eine Liste "proposed" gesteckt
             proposed = [(x - 1, y) for (x, y) in self._current]
+            # Es wird geprüft, ob alle neuen Koordinaten gültig sind. Wenn ja, werden sie übernommen
             if all(0 <= x < self.columns and self.grid[y][x] == background for (x, y) in proposed):
                 self._current = proposed
 
@@ -126,14 +146,25 @@ class MehrsteinTetris:
 
         elif input == Input.RotateLeft:
             # Drehung gegen den Uhrzeigersinn; benutze den ersten Block als Drehpunkt.
+            # pivot[0] ist der x-Wert des Pivots
+            # pivot[1] ist der y-Wert des Pivots
             pivot = self._current[0]
+
+            # Die neuen Koordinaten werden in eine Liste gepackt.
             new_coords = []
+
+            # Mathematischer Ansatz für Drehung um einen Punkt
+            # new_x = px - (y-py)
+            # new_y = py - (x-px)
             for (x, y) in self._current:
                 new_x = pivot[0] - (y - pivot[1])
                 new_y = pivot[1] + (x - pivot[0])
                 new_coords.append((new_x, new_y))
+
+            # Validierung, ob die neuen Koordinaten gültig sind.
             if all(0 <= new_x < self.columns and 0 <= new_y < self.rows and self.grid[new_y][new_x] == background
                    for (new_x, new_y) in new_coords):
+                # Wenn korrekt, wird das Teil gedreht.
                 self._current = new_coords
 
         elif input == Input.RotateRight:
@@ -149,7 +180,7 @@ class MehrsteinTetris:
                 self._current = new_coords
 
         elif input == Input.Fall:
-            # Hier wird jetzt schrittweise gedroppt und nicht mehr instant nach unten gewarped.
+            # Mit jedem Frame, fällt der aktuelle Block um 3 Schritte
             steps = 3  # Anzahl der Schritte pro Frame bei gedrückter Leertaste
             for _ in range(steps):
                 proposed = [(x, y + 1) for (x, y) in self._current]
@@ -259,7 +290,7 @@ def playTetris(tetris, block_size=30, fps=60):
                     pygame.draw.rect(screen, color, rect)
                     pygame.draw.rect(screen, "Black", rect, 1)
 
-        # Draw current piece
+        # Draw the current piece
         if not game_over:
             for (col, row) in tetris.current():
                 rect = (col * block_size, row * block_size, block_size, block_size)
