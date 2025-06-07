@@ -1,6 +1,7 @@
 import pygame
 import random
 from enum import Enum
+from collections import deque
 
 # Globale Definitionen
 background = 'Black'
@@ -15,7 +16,7 @@ class MehrsteinTetris:
         # Erstelle das Raster (Grid) als Liste von Zeilen, die mit der Hintergrundfarbe gefüllt sind.
         self.grid = [[background for _ in range(columns)] for _ in range(rows)]
         # Definiere eine Liste möglicher Farben für die Tetris-Teile.
-        self.colors = ["Red", "Green", "Blue", "Yellow", "Magenta", "Cyan", "Orange"]
+        self.colors = ["Red", "Green", "Blue"]
         # Setze current_color beim Start fest
         self.current_color = random.choice(self.colors)
         # Initial wird ein Standard-Teil, hier ein I-Teil, in der Mitte des Spielfelds erzeugt.
@@ -53,18 +54,10 @@ class MehrsteinTetris:
             [(2, 0), (0, 1), (1, 1), (2, 1)]  # L-Form
         ]
         shape = random.choice(shapes)
-
         # Bestimme den horizontalen Offset, damit das neue Teil in das Spielfeld passt.
-        # xs = Liste aus allen x-Werten
         xs = [x for (x, y) in shape]
-        # min und max x Wert
         min_x = min(xs)
         max_x = max(xs)
-
-        # horizontaler Offset ist dafür da, dass die Form innerhalb des Spielfelds bleibt.
-        # Da die Form an einem zufälligen Punkt auf der x-Achse platziert werden soll, wird mit offset min und max
-        # die Grenze festgelegt. anschließend wird ein zufälliger Punkt ausgewählt und eine Farbe zugewiesen.
-        # Anmerkung: (x+offset, y) wird auf alle einzelnen Blöcke der Form angewandt
         offset_min = -min_x
         offset_max = self.columns - 1 - max_x
         offset = random.randint(offset_min, offset_max) if offset_max >= offset_min else offset_min
@@ -74,55 +67,134 @@ class MehrsteinTetris:
         return new_piece
 
     def move(self):
-        """
-        Bewegt das aktuelle fallende Teil eine Zeile nach unten,
-        sofern alle Felder direkt unter dem Teil frei und innerhalb
-        des Spielfelds liegen.
-
-        Falls mindestens ein Block nicht weiter nach unten bewegt
-        werden kann, wird das Teil "eingefroren":
-         - Die Zellen des Teils werden im Raster mit der Farbe des Teils markiert.
-         - Voll belegte Zeilen werden erkannt und entfernt (neue leere Zeilen werden oben eingefügt).
-         - Anschließend wird ein neues fallendes Teil mittels get_new_piece() erzeugt.
-        """
-
-        # Jeder Block des aktuellen Teils wird eine Zeile tiefer verschoben
         new_coords = [(x, y + 1) for (x, y) in self._current]
         can_move = True
-
-        # Prüfen, ob eine Bewegung möglich ist, d.h., ob alle neuen Positionen gültig sind.
         for (x, y) in new_coords:
-            # y>= self.rows -> Der neue y-Wert liegt außerhalb des Spielfelds
-            # self.grid[y][x] != background -> Die neue Zelle an Position (x,y) ist nicht besetzt.
             if y >= self.rows or self.grid[y][x] != background:
-                # Das Teil kann nicht bewegt werden
                 can_move = False
                 break
-
-        # Wenn das Teil bewegt werden kann, werden ihm die neuen Koordinaten zugewiesen
         if can_move:
             self._current = new_coords
-        # Wenn es sich nicht bewegen kann, werden alle Blöcke des Teils an dieser Stelle eingefroren
         else:
-            # "Einfrieren" des Teils ins Raster mit der aktuellen Farbe
+            # Einfrieren des Teils
             for (x, y) in self._current:
                 if 0 <= x < self.columns and 0 <= y < self.rows:
                     self.grid[y][x] = self.current_color
-            # Entferne volle Zeilen (Zeilen, in denen keine Zelle den Hintergrund mehr enthält)
-            notFull = [row for row in self.grid if any(cell == background for cell in row)]
-            removed_lines = self.rows - len(notFull)
-            new_rows = [[background for _ in range(self.columns)] for _ in range(removed_lines)]
-            self.grid = new_rows + notFull
 
-            # Score für entfernte Zeile hinzufügen
-            self.score += removed_lines * 100
+            # Sobald ein Block platziert ist, wird für jede Farbe geprüft,
+            # ob es eine durchgehende Fläche gibt und die Blöcke dieser Farbe entfernt.
+            for color in self.colors:
+                self.remove_connected_color_if_path_exists(color)
 
-            # Punkte für Platzieren eines neuen Blocks
-            self.score += 10
+            # Prüfe auf horizontalen Farbdurchgang
+            removed = self.check_color_path(self.current_color)
+            if removed:
+                for (x, y) in removed:
+                    self.grid[y][x] = background
+                self.score += len(removed) * 20  # Punkte je entferntem Block
+            else:
+                self.score += 10  # Nur fürs Platzieren
 
-            # Erzeuge ein neues Teil mit zufälliger Farbe.
+            # Neues Teil generieren
             self._current = self.get_new_piece()
         return self
+
+    def check_color_path(self, color):
+        """
+        Überprüft rekursiv, ob ein durchgehender Pfad aus gleichfarbigen Blöcken existiert,
+        der von der linken zur rechten Seite des Spielfelds reicht.
+        """
+
+        visited = set()  # Merkt sich alle bereits besuchten Zellen
+
+        def dfs(x, y):
+            """
+            Rekursive Hilfsfunktion, die alle angrenzenden Zellen mit gleicher Farbe besucht
+            und überprüft, ob eine Verbindung zur rechten Spielfeldseite besteht.
+            """
+            # Abbruch, wenn Position ungültig ist oder Farbe nicht passt
+            if (x, y) in visited or not (0 <= x < self.columns and 0 <= y < self.rows):
+                return False
+            if self.grid[y][x] != color:
+                return False
+
+            # Markiere aktuelle Zelle als besucht
+            visited.add((x, y))
+
+            # Erfolgsbedingung: rechter Rand erreicht
+            if x == self.columns - 1:
+                return True
+
+            # Rekursive Aufrufe in vier Richtungen
+            return (
+                    dfs(x + 1, y) or
+                    dfs(x - 1, y) or
+                    dfs(x, y + 1) or
+                    dfs(x, y - 1)
+            )
+
+        # Die rekursive Suche startet von allen Zellen in der linken Spalte, die die Ziel-Farbe besitzen
+        for y in range(self.rows):
+            if self.grid[y][0] == color:
+                if dfs(0, y):
+                    return visited  # Erfolgreicher Pfad gefunden
+
+        return None  # Kein Pfad gefunden
+
+    def remove_connected_color_if_path_exists(self, color):
+        """
+        Überprüft, ob es eine zusammenhängende Fläche von Blöcken der übergebenen Farbe gibt,
+        die vom linken bis zum rechten Spielfeldrand reicht.
+
+        Falls ja, werden **alle zusammenhängenden Blöcke dieser Farbe**, nicht nur der direkte
+        Verbindungspfad, vom Spielfeld entfernt.
+        """
+        visited = set()  # Set für bereits besuchte Zellen
+
+        def dfs(x, y):
+            """
+            Rekursive Tiefensuche ab gegebener Position. Fügt alle zusammenhängenden Blöcke
+            gleicher Farbe zu 'visited' hinzu.
+
+            Args:
+                x (int): Spalte
+                y (int): Zeile
+            """
+            if (x, y) in visited:
+                return
+            if not (0 <= x < self.columns and 0 <= y < self.rows):
+                return
+            if self.grid[y][x] != color:
+                return
+
+            visited.add((x, y))
+
+            # Suche in alle 4 Richtungen weiter
+            dfs(x + 1, y)
+            dfs(x - 1, y)
+            dfs(x, y + 1)
+            dfs(x, y - 1)
+
+        # Finde alle Farbinseln der gewünschten Farbe, die am linken Rand starten
+        for y in range(self.rows):
+            if self.grid[y][0] == color and (0, y) not in visited:
+                component = set()
+                visited_before = visited.copy()
+                dfs(0, y)
+                component = visited - visited_before
+
+                # Prüfen, ob eine Zelle in diesem Cluster die rechte Seite berührt
+                reaches_right = any(x == self.columns - 1 for (x, _) in component)
+                if reaches_right:
+                    # Entferne alle Blöcke dieser Farb-Insel
+                    for (x, y) in component:
+                        self.grid[y][x] = background
+
+                    # Punktevergabe je Block (optional einstellbar)
+                    self.score += len(component) * 50
+                    return True  # Pfad erfolgreich entfernt
+
+        return False  # Kein vollständiger Pfad gefunden
 
     def prInput(self, input):
         """
@@ -133,9 +205,7 @@ class MehrsteinTetris:
            indem pro Eingabe mehrere Schritte ausgeführt werden, ohne sofort alle Zeilen zu überspringen.
         """
         if input == Input.Left:
-            # Alle Koordinaten werden nach links verschoben und in eine Liste "proposed" gesteckt
             proposed = [(x - 1, y) for (x, y) in self._current]
-            # Es wird geprüft, ob alle neuen Koordinaten gültig sind. Wenn ja, werden sie übernommen
             if all(0 <= x < self.columns and self.grid[y][x] == background for (x, y) in proposed):
                 self._current = proposed
 
@@ -146,25 +216,14 @@ class MehrsteinTetris:
 
         elif input == Input.RotateLeft:
             # Drehung gegen den Uhrzeigersinn; benutze den ersten Block als Drehpunkt.
-            # pivot[0] ist der x-Wert des Pivots
-            # pivot[1] ist der y-Wert des Pivots
             pivot = self._current[0]
-
-            # Die neuen Koordinaten werden in eine Liste gepackt.
             new_coords = []
-
-            # Mathematischer Ansatz für Drehung um einen Punkt
-            # new_x = px - (y-py)
-            # new_y = py - (x-px)
             for (x, y) in self._current:
                 new_x = pivot[0] - (y - pivot[1])
                 new_y = pivot[1] + (x - pivot[0])
                 new_coords.append((new_x, new_y))
-
-            # Validierung, ob die neuen Koordinaten gültig sind.
             if all(0 <= new_x < self.columns and 0 <= new_y < self.rows and self.grid[new_y][new_x] == background
                    for (new_x, new_y) in new_coords):
-                # Wenn korrekt, wird das Teil gedreht.
                 self._current = new_coords
 
         elif input == Input.RotateRight:
@@ -180,7 +239,7 @@ class MehrsteinTetris:
                 self._current = new_coords
 
         elif input == Input.Fall:
-            # Mit jedem Frame, fällt der aktuelle Block um 3 Schritte
+            # Hier wird jetzt schrittweise gedroppt und nicht mehr instant nach unten gewarped.
             steps = 3  # Anzahl der Schritte pro Frame bei gedrückter Leertaste
             for _ in range(steps):
                 proposed = [(x, y + 1) for (x, y) in self._current]
@@ -290,7 +349,7 @@ def playTetris(tetris, block_size=30, fps=60):
                     pygame.draw.rect(screen, color, rect)
                     pygame.draw.rect(screen, "Black", rect, 1)
 
-        # Draw the current piece
+        # Draw current piece
         if not game_over:
             for (col, row) in tetris.current():
                 rect = (col * block_size, row * block_size, block_size, block_size)
