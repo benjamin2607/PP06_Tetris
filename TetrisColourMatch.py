@@ -80,7 +80,6 @@ class MehrsteinTetris:
                 if 0 <= x < self.columns and 0 <= y < self.rows:
                     self.grid[y][x] = self.current_color
 
-            # Add this line to check and remove connected pieces
             self.remove_connected_lines()
 
             # Erzeuge ein neues Teil mit zufälliger Farbe.
@@ -215,7 +214,7 @@ class MehrsteinTetris:
         return False
 
 
-def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
+def playTetris(tetris, block_size=30, fps=240, drop_speed=10.0):
     """
     Main game loop function for Tetris game.
 
@@ -225,9 +224,9 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
         Instance of the Tetris game class that handles game logic
     block_size : int, optional (default=30)
         Size of each tetris block in pixels
-    fps : int, optional (default=60)
+    fps : int, optional (default=240)
         Target frames per second for the game
-    drop_speed : float, optional (default=1.0)
+    drop_speed : float, optional (default=10.0)
         Number of downward piece movements per second during normal gameplay
 
     Game Controls:
@@ -238,6 +237,8 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     - Down Arrow: Rotate piece clockwise
     - Space: Fast fall
     - ESC: Pause/Unpause game
+    - Q: Quit game (during pause or game over)
+    - E: Restart game (after game over)
 
     Technical Details:
     -----------------
@@ -247,6 +248,13 @@ def playTetris(tetris, block_size=30, fps=60, drop_speed=1.0):
     - Fast fall interval: 50ms (20 moves per second)
     - Movement delay: 100ms between lateral movements
     - Rotation delay: 150ms between rotations
+
+    Game Features:
+    -------------
+    - Fail line at 20% from the top (red line)
+    - Semi-transparent overlays for pause and game over states
+    - Score counter
+    - Game over when blocks reach the fail line
     """
 
     # Initialize Pygame and create a game window
