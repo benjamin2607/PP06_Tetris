@@ -100,7 +100,7 @@ class MehrsteinTetris:
         Falls ja, werden **alle zusammenhängenden Blöcke dieser Farbe**, nicht nur der direkte
         Verbindungspfad, vom Spielfeld entfernt.
         """
-        visited = set()  # Set für bereits besuchte Zellen
+        visited = set()  # Set für bereits besuchte Zellen aus allen Aufrufen
 
         def dfs(x, y):
             """
@@ -130,8 +130,15 @@ class MehrsteinTetris:
         for y in range(self.rows):
             if self.grid[y][0] == color and (0, y) not in visited:
                 component = set()
+
+                # speichert den Zustand von visited, bevor er für eine neue Startzelle am linken Rand aufgerufen wird
                 visited_before = visited.copy()
+
+                # dfs wird von der nächsten Zelle aus aufgerufen
                 dfs(0, y)
+
+                # component ist der neu hinzugekommene Bereich, mit dem neusten Aufruf
+                # wird verwendet, um zu prüfen, ob die aktuelle Farbinsel die rechte Seite erreicht.
                 component = visited - visited_before
 
                 # Prüfen, ob eine Zelle in diesem Cluster die rechte Seite berührt
