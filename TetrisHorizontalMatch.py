@@ -86,60 +86,11 @@ class MehrsteinTetris:
             for color in self.colors:
                 self.remove_connected_color_if_path_exists(color)
 
-            # Prüfe auf horizontalen Farbdurchgang
-            removed = self.check_color_path(self.current_color)
-            if removed:
-                for (x, y) in removed:
-                    self.grid[y][x] = background
-                self.score += len(removed) * 20  # Punkte je entferntem Block
-            else:
-                self.score += 10  # Nur fürs Platzieren
+            self.score += 10 # +10 Punkte für das Platzieren von Blöcken
 
             # Neues Teil generieren
             self._current = self.get_new_piece()
         return self
-
-    def check_color_path(self, color):
-        """
-        Überprüft rekursiv, ob ein durchgehender Pfad aus gleichfarbigen Blöcken existiert,
-        der von der linken zur rechten Seite des Spielfelds reicht.
-        """
-
-        visited = set()  # Merkt sich alle bereits besuchten Zellen
-
-        def dfs(x, y):
-            """
-            Rekursive Hilfsfunktion, die alle angrenzenden Zellen mit gleicher Farbe besucht
-            und überprüft, ob eine Verbindung zur rechten Spielfeldseite besteht.
-            """
-            # Abbruch, wenn Position ungültig ist oder Farbe nicht passt
-            if (x, y) in visited or not (0 <= x < self.columns and 0 <= y < self.rows):
-                return False
-            if self.grid[y][x] != color:
-                return False
-
-            # Markiere aktuelle Zelle als besucht
-            visited.add((x, y))
-
-            # Erfolgsbedingung: rechter Rand erreicht
-            if x == self.columns - 1:
-                return True
-
-            # Rekursive Aufrufe in vier Richtungen
-            return (
-                    dfs(x + 1, y) or
-                    dfs(x - 1, y) or
-                    dfs(x, y + 1) or
-                    dfs(x, y - 1)
-            )
-
-        # Die rekursive Suche startet von allen Zellen in der linken Spalte, die die Ziel-Farbe besitzen
-        for y in range(self.rows):
-            if self.grid[y][0] == color:
-                if dfs(0, y):
-                    return visited  # Erfolgreicher Pfad gefunden
-
-        return None  # Kein Pfad gefunden
 
     def remove_connected_color_if_path_exists(self, color):
         """
